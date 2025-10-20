@@ -1,26 +1,48 @@
 import os
-from dagster_dbt import DbtCliClientResource
-from dagster_dbt import load_assets_from_dbt_project
-from dagster_airbyte import AirbyteResource
-from dagster_airbyte import load_assets_from_airbyte_instance
+from dagster import asset
 
-resources = {
-    "dbt": DbtCliClientResource(
-        project_dir=os.getenv("DBT_PROJECT_DIR"),
-        profiles_dir=os.getenv("DBT_PROFILES_DIR"),
-    ),
-    "airbyte_instance": AirbyteResource(
-        host="localhost",
-        port="8000",
-        # If using basic auth, include username and password:
-        username="airbyte",
-        password=os.getenv("AIRBYTE_PASSWORD")
-    )
-}
+# Simple dbt assets for now (without Airbyte integration)
+@asset(key_prefix=["transformed_data"])
+def stg_customers():
+    """Staging customers table"""
+    return "stg_customers"
 
-dbt_assets = load_assets_from_dbt_project(
-    project_dir=os.getenv("DBT_PROJECT_DIR"), profiles_dir=os.getenv("DBT_PROFILES_DIR"), key_prefix=["transformed_data"]
-)
+@asset(key_prefix=["transformed_data"])
+def stg_orders():
+    """Staging orders table"""
+    return "stg_orders"
 
-airbyte_assets = load_assets_from_airbyte_instance(
-    resources.get("airbyte_instance"), key_prefix=["raw_data"])
+@asset(key_prefix=["transformed_data"], deps=[stg_customers, stg_orders])
+def dim_customers():
+    """Customer dimension table"""
+    return "dim_customers"
+
+# Simple raw data assets (representing what would come from Airbyte)
+@asset(key_prefix=["raw_data"])
+def raw_customers():
+    """Raw customers data from PostgreSQL"""
+    return "raw_customers"
+
+@asset(key_prefix=["raw_data"])
+def raw_orders():
+    """Raw orders data from PostgreSQL"""
+    return "raw_orders"
+
+@asset(key_prefix=["raw_data"])
+def raw_products():
+    """Raw products data from PostgreSQL"""
+    return "raw_products"
+
+@asset(key_prefix=["raw_data"])
+def raw_order_items():
+    """Raw order items data from PostgreSQL"""
+    return "raw_order_items"
+
+# Export all assets
+dbt_assets_from_project = [stg_customers, stg_orders, dim_customers]
+airbyte_assets = [raw_customers, raw_orders, raw_products, raw_order_items]
+
+# Empty resources for now
+resources = {}
+
+__all__ = ["resources", "dbt_assets_from_project", "airbyte_assets"]
